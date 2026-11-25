@@ -1,0 +1,17 @@
+.gradle/
+build/
+/local.properties
+.idea/
+*.iml
+.DS_Store
+.kotlin/
+captures/
+# Locally built test APKs
+builds/
+# Signing — never commit
+keystore.properties
+*.jks
+*.keystore
+
+# Local Claude Code settings
+.claude/settings.local.json
