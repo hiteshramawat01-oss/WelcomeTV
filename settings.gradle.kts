@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "GuestExperienceTV"
 
-include(":shared", ":tv", ":host")
+include(":shared", ":tv", ":host", ":updater")

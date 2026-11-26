@@ -61,6 +61,8 @@ import com.guestexperience.shared.model.PropertyContent
 import com.guestexperience.shared.model.TimeFormat
 import com.guestexperience.shared.model.WifiSecurity
 import com.guestexperience.shared.sync.TvKind
+import com.guestexperience.shared.update.AppUpdates
+import com.guestexperience.shared.update.UpdateState
 import com.guestexperience.shared.validation.Validators
 import java.time.LocalDate
 import java.time.LocalTime
@@ -170,7 +172,7 @@ private fun PairScreen(s: HostUiState, vm: HostViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            if (selected?.kind == TvKind.SAMSUNG) "On the Samsung TV: open Guest Welcome, press OK 5 times quickly, then choose Pair a phone."
+            if (selected?.kind == TvKind.SAMSUNG) "On the Samsung TV: open Guest Welcome, select ⚙ at the top right, then choose Pair a phone."
             else "On the TV: hold OK for 3 seconds (or choose ⚙), enter your PIN, then open Pair a phone.",
             style = MaterialTheme.typography.bodySmall,
             color = HostColors.Dim,
@@ -187,10 +189,8 @@ private fun PairScreen(s: HostUiState, vm: HostViewModel) {
 
 @Composable
 private fun MainScreen(s: HostUiState, vm: HostViewModel) {
-    var chosenTab by rememberSaveable { mutableStateOf(Tab.STAY) }
-    // A Samsung TV shows only the guest name and message, so its Wi-Fi and property tabs are hidden.
-    val tabs = if (s.welcomeOnly) listOf(Tab.STAY, Tab.TV) else Tab.entries
-    val tab = chosenTab.takeIf { it in tabs } ?: Tab.STAY
+    var tab by rememberSaveable { mutableStateOf(Tab.STAY) }
+    val tabs = Tab.entries
     Scaffold(
         containerColor = HostColors.Ink,
         bottomBar = {
@@ -207,7 +207,7 @@ private fun MainScreen(s: HostUiState, vm: HostViewModel) {
                     tabs.forEach { t ->
                         NavigationBarItem(
                             selected = tab == t,
-                            onClick = { chosenTab = t },
+                            onClick = { tab = t },
                             icon = { Icon(painterResource(t.icon), contentDescription = null) },
                             label = { Text(t.label) },
                         )
@@ -225,6 +225,7 @@ private fun MainScreen(s: HostUiState, vm: HostViewModel) {
                 .padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            UpdateBanner(vm.updates)
             ConnectionLine(s)
             Header("", when (tab) {
                 Tab.STAY -> "This stay"
@@ -236,9 +237,9 @@ private fun MainScreen(s: HostUiState, vm: HostViewModel) {
             when {
                 tab == Tab.TV -> TvTab(s, vm)
                 d == null -> Waiting(s, vm)
-                tab == Tab.STAY -> StayTab(d, vm, showCheckOut = !s.welcomeOnly)
+                tab == Tab.STAY -> StayTab(d, vm)
                 tab == Tab.WIFI -> WifiTab(d, vm)
-                tab == Tab.PROPERTY -> PropertyTab(d, vm)
+                tab == Tab.PROPERTY -> PropertyTab(d, vm, photosOnTv = !s.isSamsung)
             }
             if (tab != Tab.TV) Message(s)
             Spacer(Modifier.height(24.dp))
@@ -263,7 +264,7 @@ private fun ConnectionLine(s: HostUiState) {
 private fun Waiting(s: HostUiState, vm: HostViewModel) {
     Text(
         if (s.connectedTv == null) "Looking for your TV. Make sure it is on, and this phone is on the same Wi-Fi." +
-            (if (s.welcomeOnly) "" else " On Android TV, open Guest Experience TV.")
+            (if (s.isSamsung) "" else " On Android TV, open Guest Experience TV.")
         else "Loading what the TV is showing…",
         style = MaterialTheme.typography.bodyMedium,
     )
@@ -315,12 +316,10 @@ private fun StepRow(label: String, value: String, onMinus: () -> Unit, onPlus: (
 }
 
 @Composable
-private fun StayTab(d: PropertyContent, vm: HostViewModel, showCheckOut: Boolean) {
+private fun StayTab(d: PropertyContent, vm: HostViewModel) {
     Field("Guest name", d.guestName, { v -> vm.edit { it.copy(guestName = v) } }, Validators.NAME_MAX, "e.g. Ananya")
     val co = d.checkOut
-    if (!showCheckOut) {
-        // Samsung Guest Welcome has no check-out line.
-    } else if (co == null) {
+    if (co == null) {
         OutlinedButton(onClick = { vm.edit { it.copy(checkOut = CheckOut(LocalDate.now().plusDays(1).toString(), "11:00")) } }) {
             Text("Add check-out time")
         }
@@ -365,7 +364,7 @@ private fun WifiTab(d: PropertyContent, vm: HostViewModel) {
 }
 
 @Composable
-private fun PropertyTab(d: PropertyContent, vm: HostViewModel) {
+private fun PropertyTab(d: PropertyContent, vm: HostViewModel, photosOnTv: Boolean) {
     Field("Property name", d.propertyName, { v -> vm.edit { it.copy(propertyName = v) } }, Validators.PROPERTY_MAX)
     Field("Area or city", d.location, { v -> vm.edit { it.copy(location = v) } }, Validators.PROPERTY_MAX, "Udaipur")
 
@@ -402,7 +401,12 @@ private fun PropertyTab(d: PropertyContent, vm: HostViewModel) {
         }
         if (d.background.useCustomPhoto) FilterChip(selected = true, onClick = {}, label = { Text("TV photo") })
     }
-    Text("Photos are chosen on the TV itself (Host Mode › Background).", style = MaterialTheme.typography.bodySmall, color = HostColors.Dim)
+    Text(
+        if (photosOnTv) "Photos are chosen on the TV itself (Host Mode › Background)."
+        else "A photo background is only available on Android TV. Samsung TVs show the scenes above.",
+        style = MaterialTheme.typography.bodySmall,
+        color = HostColors.Dim,
+    )
     Text("Clock", style = MaterialTheme.typography.labelMedium, color = HostColors.Muted)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(selected = d.timeFormat == TimeFormat.H12, onClick = { vm.edit { it.copy(timeFormat = TimeFormat.H12) } }, label = { Text("12-hour") })
@@ -424,12 +428,63 @@ private fun TvTab(s: HostUiState, vm: HostViewModel) {
         }
     }
     OutlinedButton(onClick = vm::refresh, modifier = Modifier.fillMaxWidth()) { Text("Search again") }
+    AppVersionRow(vm.updates)
     OutlinedButton(onClick = { vm.showPairing(true) }, modifier = Modifier.fillMaxWidth()) { Text("Pair with a different TV") }
     TextButton(onClick = vm::forget, modifier = Modifier.fillMaxWidth()) { Text("Forget this TV", color = HostColors.Warn) }
     Text(
         "This phone and the TV talk only over your Wi-Fi. To stop this phone controlling the TV, also remove it on the TV under " +
-            (if (s.welcomeOnly) "Pair a phone › Remove all phones." else "Host Mode › Pair a phone."),
+            (if (s.isSamsung) "⚙ › Pair a phone › Remove all phones." else "Host Mode › Pair a phone."),
         style = MaterialTheme.typography.bodySmall,
         color = HostColors.Dim,
     )
+}
+
+/** Shown at the top of the main screen while there is something to do about an update. */
+@Composable
+private fun UpdateBanner(updates: AppUpdates?) {
+    updates ?: return
+    val state by updates.state.collectAsStateWithLifecycle()
+    val text = when (val st = state) {
+        is UpdateState.Available -> "Update available: version ${st.release.versionName}"
+        is UpdateState.NeedsPermission -> "To update, allow this app to install apps (once), then come back and tap Update."
+        is UpdateState.Downloading -> "Downloading update… ${st.percent}%"
+        is UpdateState.Installing -> "Confirm the update in Android's dialog."
+        is UpdateState.Failed -> st.message.takeIf { st.release != null }
+        else -> null
+    } ?: return
+    Column(
+        Modifier.padding(top = 12.dp).fillMaxWidth().background(HostColors.Card, RoundedCornerShape(12.dp)).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(text, style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            when (state) {
+                is UpdateState.Available -> Button(onClick = updates::install) { Text("Update") }
+                is UpdateState.NeedsPermission -> {
+                    Button(onClick = updates::openInstallPermission) { Text("Allow installs") }
+                    OutlinedButton(onClick = updates::install) { Text("Update") }
+                }
+                is UpdateState.Failed -> OutlinedButton(onClick = updates::install) { Text("Try again") }
+                else -> Unit
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppVersionRow(updates: AppUpdates?) {
+    updates ?: return
+    val state by updates.state.collectAsStateWithLifecycle()
+    val status = when (val st = state) {
+        UpdateState.Checking -> "Checking for updates…"
+        UpdateState.UpToDate -> "Up to date."
+        is UpdateState.Available -> "Version ${st.release.versionName} is available."
+        is UpdateState.Failed -> st.message
+        else -> null
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("This app: version ${updates.installedVersionName}", style = MaterialTheme.typography.bodySmall, color = HostColors.Muted)
+        status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = HostColors.Dim) }
+    }
+    OutlinedButton(onClick = updates::check, enabled = state != UpdateState.Checking, modifier = Modifier.fillMaxWidth()) { Text("Check for updates") }
 }

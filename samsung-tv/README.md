@@ -9,6 +9,9 @@ samsung-tv/
   index.html   welcome, setup and pair-a-phone screens
   style.css    look (same colours and fonts as the Android TV app)
   app.js       screens, remote-control handling and saving
+  content.js   content rules (same as ContentValidator) and clock/date/check-out text
+  scene.js     the Udaipur dusk/night background (same vector scene as the Android app)
+  qr.js        QR encoder for the Wi-Fi code (checked against zxing: QrJsCompatTest)
   sync.js      updates from the Host phone app (pairing + encrypted messages)
   icon.png     launcher icon
   fonts/       Cormorant Garamond and Inter (OFL, see ../licenses)
@@ -19,8 +22,10 @@ samsung-tv/
 - **First launch** shows a setup screen. Type the guest name and a message with the remote
   (OK on a field opens the TV keyboard), then pick **Save**.
 - After that the TV shows only the welcome screen. The app turns off the TV's screensaver while it's open.
-- **To open the settings again:** press **OK** (the centre of the ring) 5 times quickly, or hold it for
-  3 seconds. Some Samsung remotes don't report a held button, so the 5 presses are the reliable way.
+- The welcome screen is "Welcome v2", the same design as the Android TV app: scene, clock and date,
+  greeting, check-out, a rotating line of notes/places/contact, and the Wi-Fi QR card.
+- **OK** on the Wi-Fi card (selected at start) enlarges the QR; OK or Back closes it.
+- **To open the settings:** press **Up** to reach ⚙ at the top right, then **OK**.
 - **Back** closes the app.
 
 Everything is saved on the TV itself (the app's local storage). Reinstalling the app clears it.
@@ -58,7 +63,7 @@ phone can't connect.
 cd samsung-tv && python3 -m http.server 8765
 ```
 
-Open http://localhost:8765 at a 1920×1080 window. Enter acts as the remote's OK button, arrows move focus.
+Open http://localhost:8765 at a 1920×1080 window (add `?demo`, `?demo=night` or `?demo=plain` for sample content). Enter acts as the remote's OK button, arrows move focus.
 
 ## Install on a Samsung TV
 
@@ -87,7 +92,7 @@ The certificate must be a **Samsung** profile with the TV's DUID. A plain Tizen 
 with "Invalid certificate chain".
 
 ```bash
-cd samsung-tv && zip -qr -X /tmp/GuestWelcome-unsigned.wgt config.xml index.html style.css sync.js app.js icon.png fonts
+cd samsung-tv && zip -qr -X /tmp/GuestWelcome-unsigned.wgt config.xml index.html style.css *.js icon.png fonts
 ```
 
 ```bash
@@ -110,3 +115,32 @@ sdb -s <tv-ip>:26101 shell 0 was_execute GuestExpTV.GuestWelcome
 ```
 
 Publishing to the Samsung Apps store goes through Samsung Seller Office and is a separate step.
+
+## Automatic updates from GitHub
+
+This Mac can upgrade the TV app by itself whenever `main` on GitHub has new commits in
+`samsung-tv/`. The Mac must be on and on the same Wi-Fi as the TV, with Developer mode on.
+
+It installs as an upgrade (`vd_appinstall`), not with `tz install`, so the saved guest name,
+message and paired phones stay on the TV.
+
+1. Settings are in `~/.config/guestexperience/samsung.env` (`TV_IP`, `PROFILE`). The first run
+   creates a commented example if the file is missing.
+2. Try it once:
+
+```bash
+tools/samsung-autoupdate.sh --once --verbose
+```
+
+3. Turn on the check every 5 minutes:
+
+```bash
+tools/install-samsung-autoupdate.sh install
+```
+
+Check on it with `tools/install-samsung-autoupdate.sh status`, turn it off with
+`tools/install-samsung-autoupdate.sh uninstall`. Re-run `install` after editing the script.
+
+The updater keeps its own copy of the repo in `~/Library/Application Support/GuestExperience`
+and logs to `~/Library/Logs/GuestExperience/samsung-update.log`. Each install gets version
+`1.2.<number of samsung-tv commits>`. If the TV is off, it tries again on the next check.

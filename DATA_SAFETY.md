@@ -5,6 +5,7 @@ answer depends on how Google classifies data sent between a user's own devices o
 
 ## Guest Experience TV (`com.guestexperience.tv`)
 
+These answers are for the Google Play builds (`play` flavour), which contain no update checker.
 The TV app receives content from the host's own phone over the local network. It sends content only
 back to that paired phone, on request. Nothing goes to the developer or to any third party.
 

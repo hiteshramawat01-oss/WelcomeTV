@@ -16,6 +16,7 @@ import com.guestexperience.shared.sync.SamsungChannelDialer
 import com.guestexperience.shared.sync.SyncDialer
 import com.guestexperience.shared.sync.TcpDialer
 import com.guestexperience.shared.sync.TvKind
+import com.guestexperience.shared.update.AppUpdates
 import java.io.File
 import java.util.UUID
 
@@ -36,6 +37,9 @@ class HostContainer(context: Context) {
     val store = HostStore(app.dataStore, KeystoreCipher())
     val discovery = TvDiscovery(app)
     val client = HostSyncClient(phoneId, phoneName)
+
+    /** In-app updates from GitHub Releases; null in Google Play builds. */
+    val updates: AppUpdates? = createAppUpdates(app)
 
     /** How to reach a found TV: TCP to the Android TV app, or the Samsung multiscreen channel. */
     fun dialer(tv: FoundTv): SyncDialer = when (tv.kind) {

@@ -1,6 +1,7 @@
 name: Release bundles
 
-# Push a tag like v1.0.0 to build both signed AABs. Upload them to Play Console by hand.
+# Push a tag like v1.0.0 to build both signed Play AABs (play flavour, no self-updating).
+# Upload them to Play Console by hand.
 on:
   push:
     tags: ["v*"]
@@ -38,11 +39,11 @@ jobs:
           GE_UPLOAD_STORE_PASSWORD: ${{ secrets.GE_UPLOAD_STORE_PASSWORD }}
           GE_UPLOAD_KEY_ALIAS: ${{ secrets.GE_UPLOAD_KEY_ALIAS }}
           GE_UPLOAD_KEY_PASSWORD: ${{ secrets.GE_UPLOAD_KEY_PASSWORD }}
-        run: ./gradlew lint test bundleRelease --console=plain
+        run: ./gradlew lint test bundlePlayRelease --console=plain
 
       - name: Check bundles are signed
         run: |
-          for f in tv/build/outputs/bundle/release/tv-release.aab host/build/outputs/bundle/release/host-release.aab; do
+          for f in tv/build/outputs/bundle/playRelease/tv-play-release.aab host/build/outputs/bundle/playRelease/host-play-release.aab; do
             jarsigner -verify "$f" | grep -q "jar verified" || { echo "$f is not signed"; exit 1; }
           done
 
@@ -50,7 +51,7 @@ jobs:
         with:
           name: aab-${{ github.ref_name }}
           path: |
-            tv/build/outputs/bundle/release/tv-release.aab
-            host/build/outputs/bundle/release/host-release.aab
-            tv/build/outputs/mapping/release/mapping.txt
+            tv/build/outputs/bundle/playRelease/tv-play-release.aab
+            host/build/outputs/bundle/playRelease/host-play-release.aab
+            tv/build/outputs/mapping/playRelease/mapping.txt
           retention-days: 30

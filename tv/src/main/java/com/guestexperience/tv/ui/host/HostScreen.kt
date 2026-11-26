@@ -58,6 +58,9 @@ import com.guestexperience.tv.ui.components.TimeText
 import com.guestexperience.tv.ui.components.TvTextField
 import com.guestexperience.tv.ui.components.focusBorder
 import com.guestexperience.tv.ui.theme.Gtv
+import com.guestexperience.shared.update.AppUpdates
+import com.guestexperience.shared.update.UpdateState
+import com.guestexperience.tv.appContainer
 import com.guestexperience.tv.ui.theme.GtvType
 import kotlinx.coroutines.delay
 import java.time.LocalDate
@@ -73,6 +76,7 @@ enum class HostSection(val title: String) {
     DISPLAY("Background & clock"),
     PAIR("Pair a phone"),
     PIN("Change PIN"),
+    UPDATE("App update"),
 }
 
 @Composable
@@ -81,6 +85,9 @@ fun HostScreen(viewModel: HostViewModel, onExit: () -> Unit) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val errorField by viewModel.errorField.collectAsStateWithLifecycle()
     var section by rememberSaveable { mutableStateOf(HostSection.STAY) }
+    // Only builds installed from GitHub Releases can update themselves (Play updates the others).
+    val updates = LocalContext.current.appContainer.updates
+    val sections = HostSection.entries.filter { it != HostSection.UPDATE || updates != null }
     val firstNav = remember { FocusRequester() }
     BackHandler(onBack = onExit)
 
@@ -93,7 +100,7 @@ fun HostScreen(viewModel: HostViewModel, onExit: () -> Unit) {
     ) {
         Column(Modifier.width(220.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("HOST MODE", style = GtvType.Overline, modifier = Modifier.padding(start = 14.dp, top = 8.dp, bottom = 14.dp))
-            HostSection.entries.forEachIndexed { i, s ->
+            sections.forEachIndexed { i, s ->
                 NavItem(s.title, s == section, { section = s }, if (i == 0) Modifier.focusRequester(firstNav) else Modifier)
             }
             Spacer(Modifier.height(10.dp))
@@ -121,8 +128,9 @@ fun HostScreen(viewModel: HostViewModel, onExit: () -> Unit) {
                     HostSection.DISPLAY -> DisplaySection(d, viewModel)
                     HostSection.PAIR -> PairingPanel(viewModel)
                     HostSection.PIN -> ChangePinSection(viewModel)
+                    HostSection.UPDATE -> updates?.let { UpdateSection(it) }
                 }
-                if (section != HostSection.PAIR && section != HostSection.PIN) {
+                if (section != HostSection.PAIR && section != HostSection.PIN && section != HostSection.UPDATE) {
                     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         GtvButton("Save", { viewModel.save() }, primary = true)
                         if (section == HostSection.STAY) GtvButton("Clear for next guest", viewModel::clearForNextGuest)
@@ -331,5 +339,34 @@ private fun PairingPanel(vm: HostViewModel) {
             Text(p.name, style = GtvType.BodyStrong, modifier = Modifier.width(260.dp))
             GtvButton("Remove", { vm.removePhone(p.phoneId) })
         }
+    }
+}
+
+@Composable
+private fun UpdateSection(updates: AppUpdates) {
+    val state by updates.state.collectAsStateWithLifecycle()
+    Text("This TV app: version ${updates.installedVersionName}", style = GtvType.Body)
+    val text = when (val st = state) {
+        UpdateState.Idle -> "Updates come from this app's GitHub releases. You confirm each one on screen."
+        UpdateState.Checking -> "Checking for updates…"
+        UpdateState.UpToDate -> "Up to date."
+        is UpdateState.Available -> "Version ${st.release.versionName} is available."
+        is UpdateState.NeedsPermission -> "First allow this app to install apps: choose Allow installs, switch it on, then press Back and choose Update."
+        is UpdateState.Downloading -> "Downloading… ${st.percent}%"
+        is UpdateState.Installing -> "Confirm the update on the next screen."
+        is UpdateState.Failed -> st.message
+    }
+    Text(text, style = GtvType.Body.copy(color = if (state is UpdateState.Failed) Gtv.Warn else Gtv.Muted))
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        when (state) {
+            is UpdateState.Available -> GtvButton("Update", updates::install, primary = true)
+            is UpdateState.NeedsPermission -> {
+                GtvButton("Allow installs", updates::openInstallPermission, primary = true)
+                GtvButton("Update", updates::install)
+            }
+            is UpdateState.Failed -> GtvButton("Try again", { if ((state as UpdateState.Failed).release != null) updates.install() else updates.check() })
+            else -> Unit
+        }
+        GtvButton("Check for updates", updates::check)
     }
 }

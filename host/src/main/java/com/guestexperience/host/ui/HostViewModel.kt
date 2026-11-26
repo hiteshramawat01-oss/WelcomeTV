@@ -11,6 +11,7 @@ import com.guestexperience.shared.sync.SyncError
 import com.guestexperience.shared.sync.SyncResult
 import com.guestexperience.shared.sync.SamsungChannelDialer
 import com.guestexperience.shared.sync.TvKind
+import com.guestexperience.shared.update.AppUpdates
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.guestexperience.shared.validation.ContentValidator
@@ -35,8 +36,8 @@ data class HostUiState(
 ) {
     val connectedTv: FoundTv? get() = pairedTv?.let { tv -> found.firstOrNull { it.tvId == tv.tvId } }
 
-    /** The Samsung Guest Welcome app shows only the guest name and the welcome message. */
-    val welcomeOnly: Boolean get() = pairedTv?.kind == TvKind.SAMSUNG
+    /** Paired with the Samsung Guest Welcome app (it shows everything except a custom photo). */
+    val isSamsung: Boolean get() = pairedTv?.kind == TvKind.SAMSUNG
 }
 
 fun SyncError.friendly(field: String? = null): String = when (this) {
@@ -83,7 +84,12 @@ class HostViewModel(private val c: HostContainer) : ViewModel() {
         viewModelScope.launch { c.discovery.searching.collect { s -> _state.update { it.copy(searching = s) } } }
     }
 
-    fun onForeground() = c.discovery.start()
+    val updates: AppUpdates? get() = c.updates
+
+    fun onForeground() {
+        c.discovery.start()
+        c.updates?.checkIfDue()
+    }
     fun onBackground() = c.discovery.stop()
     fun refresh() = c.discovery.refresh()
 
@@ -124,8 +130,7 @@ class HostViewModel(private val c: HostContainer) : ViewModel() {
             houseNotes = draft.houseNotes.map(String::trim).filter(String::isNotEmpty),
             places = draft.places.filter { it.name.isNotBlank() },
         )
-        val problem = if (s.welcomeOnly) ContentValidator.validateWelcomeOnly(cleaned) else ContentValidator.validate(cleaned)
-        problem?.let { p -> return message("Check ${fieldLabel(p.field)}.", true) }
+        ContentValidator.validate(cleaned)?.let { p -> return message("Check ${fieldLabel(p.field)}.", true) }
         val target = s.connectedTv ?: return message(SyncError.UNREACHABLE.friendly(), true)
         _state.update { it.copy(busy = true) }
         viewModelScope.launch {

@@ -39,4 +39,9 @@ object TimeText {
         clock(time, format).let { (t, suffix) -> if (suffix == null) t else "$t $suffix" }
 
     fun day(date: LocalDate): String = date.format(dayDate)
+
+    private val longDate = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)
+
+    /** "Monday, 23 November", for the clock block. */
+    fun longDay(date: LocalDate): String = date.format(longDate)
 }

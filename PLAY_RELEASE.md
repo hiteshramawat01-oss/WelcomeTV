@@ -12,7 +12,7 @@ once the TV app is live.
       Fill in `[YOUR NAME OR COMPANY]` and `[YOUR CONTACT EMAIL]` first.
 - [ ] Check application IDs: `com.guestexperience.*` cannot be changed after the first upload.
       Change them in `tv/build.gradle.kts` / `host/build.gradle.kts` now if you want your own domain.
-- [ ] `./gradlew lint test bundleRelease` passes with the upload key configured.
+- [ ] `./gradlew lint test bundlePlayRelease` passes with the upload key configured.
 - [ ] Manual test plan (`TESTING.md`) done on the Android TV API 31 2 GB emulator, Google TV API 34 and one real TV.
 
 ## 1. Create the app (TV)
@@ -61,7 +61,7 @@ once the TV app is live.
 ## 5. Internal testing
 
 - [ ] Test and release › Testing › Internal testing › Create release.
-- [ ] Upload `tv/build/outputs/bundle/release/tv-release.aab` (signed with the upload key).
+- [ ] Upload `tv/build/outputs/bundle/playRelease/tv-play-release.aab` (signed with the upload key).
 - [ ] Release notes: "First release."
 - [ ] Add testers (email list), open the opt-in link on a Google account that is signed in on a
       Google TV / Android TV, install from Play on the TV, run `TESTING.md` §1–3 again.
@@ -83,7 +83,7 @@ once the TV app is live.
 
 ## 8. Host phone app
 
-Repeat steps 1–5 for **Guest Experience Host** with `host/build/outputs/bundle/release/host-release.aab`,
+Repeat steps 1–5 for **Guest Experience Host** with `host/build/outputs/bundle/playRelease/host-play-release.aab`,
 **without** step 4 (it is a phone app). Use phone screenshots of the Stay, Wi-Fi and pairing screens.
 `targetSdk` is 36, as Play requires for phone apps from August 2026.
 

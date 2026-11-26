@@ -1,6 +1,7 @@
 package com.guestexperience.shared.sync
 
 import com.guestexperience.shared.model.PropertyContent
+import com.guestexperience.shared.model.WifiInfo
 import com.guestexperience.shared.validation.ContentProblem
 import com.guestexperience.shared.validation.ContentValidator
 import kotlinx.coroutines.CoroutineScope
@@ -42,13 +43,13 @@ class SamsungChannelTest {
         override val tvId = "uuid:test-tv"
         override val tvName = "Samsung test TV"
         val phones = ConcurrentHashMap<String, PairedPhone>()
-        @Volatile var content = PropertyContent(guestName = "Before")
+        @Volatile var content = PropertyContent(propertyName = "Lake House", guestName = "Before", wifi = WifiInfo("Lake-Guest", "lakeview2026"))
         override suspend fun findPhone(phoneId: String) = phones[phoneId]
         override suspend fun savePhone(phone: PairedPhone) { phones[phone.phoneId] = phone }
         override suspend fun currentContent() = content
-        // Like the Samsung app: only the guest name and message are shown, so only they are checked.
+        // The Samsung app applies the same rules as ContentValidator (samsung-tv/content.js).
         override suspend fun applyContent(content: PropertyContent): ContentProblem? =
-            ContentValidator.validateWelcomeOnly(content) ?: run { this.content = content; null }
+            ContentValidator.validate(content) ?: run { this.content = content; null }
     }
 
     /** Minimal stand-in for the TV's port-8001 service: channel WebSocket plus the app-start endpoint. */
@@ -222,7 +223,10 @@ class SamsungChannelTest {
         val real = HostSyncClient("kotlin-test-phone", "Kotlin test")
         val dialer = SamsungChannelDialer(ip!!, "Kotlin test")
         val info = SamsungChannelDialer.lookup(ip)
-        assertTrue("lookup failed", info != null && info.id.startsWith("uuid:"))
+        if (info == null || !info.id.startsWith("uuid:")) {
+            val raw = runCatching { SamsungChannelDialer.httpRequest(ip, SamsungChannelDialer.DEFAULT_PORT, "GET", "/api/v2/", null, 4_000) }
+            org.junit.Assert.fail("lookup failed: info=$info raw=${raw.map { "${it.first} ${it.second.take(200)}" }.getOrElse { it.toString() }}")
+        }
         val code = System.getenv("GE_SAMSUNG_CODE")
         if (code == null) {
             // Only join the channel (opening the app if needed); never spend a pairing attempt.

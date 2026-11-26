@@ -29,6 +29,10 @@ Wi-Fi network**. Pairing needs a one-time code shown on the TV. After that, all 
 The information goes only from the host's phone to the host's TV. It is never sent to us or to any
 server. The TV announces itself on the local network only while the app is open.
 
+Copies installed from our GitHub releases (not from Google Play) also check github.com for a newer
+version of the app and, if you choose to update, download it from there. That request contains no
+information about you, your property or your guests; GitHub sees only a normal web request.
+
 ## Guests
 
 Guests only view the screen. The apps do not collect any information from guests. Scanning the Wi-Fi

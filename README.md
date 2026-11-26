@@ -11,7 +11,8 @@ for the host.
 | `shared` | Pure Kotlin (no Android): content model, Wi-Fi QR payload, QR encoder, validation, PIN hashing and lockout, pairing and sync protocol | – | – |
 
 Everything stays inside the property: no accounts, no analytics, no ads, no cloud. The phone and TV
-talk only over the local network, encrypted after a one-time pairing code.
+talk only over the local network, encrypted after a one-time pairing code. (Sideload builds also ask
+github.com for app updates; see *Automatic updates*.)
 
 ## Requirements
 
@@ -32,15 +33,18 @@ sdk.dir=/Users/<you>/Library/Android/sdk
 ## Build and test
 
 ```bash
-./gradlew lint test bundleRelease
+./gradlew lint test bundlePlayRelease
 ```
 
 - `lint`: Android lint for both apps (fails on errors).
 - `test`: shared unit tests (QR payload escaping, QR encode→decode, validators, PIN hashing/lockout,
   JSON forward-compatibility, pairing and sync over real sockets) plus the TV's Compose UI tests
   (Robolectric, 1920×1080, D-pad focus).
-- `bundleRelease`: `tv/build/outputs/bundle/release/tv-release.aab` and
-  `host/build/outputs/bundle/release/host-release.aab` (signed if an upload key is configured, see below).
+- `bundlePlayRelease`: `tv/build/outputs/bundle/playRelease/tv-play-release.aab` and
+  `host/build/outputs/bundle/playRelease/host-play-release.aab` (signed if an upload key is configured, see below).
+
+Both apps have two flavours: **play** (for Google Play, no self-updating) and **sideload** (installed
+from GitHub Releases, with an in-app **Update** button; see *Automatic updates* below).
 
 TV screenshots at 1920×1080 are rendered by `ScreenshotTest` into `tv/build/screenshots/`
 (copies for the Play listing are in `store-listing/screenshots-tv/`). The banner, store icon and
@@ -69,7 +73,7 @@ emulator -avd tv31_2gb
 ```
 
 ```bash
-./gradlew :tv:installDebug
+./gradlew :tv:installPlayDebug
 ```
 
 Use the emulator's D-pad (arrow keys and Enter on your keyboard). Measure cold start with:
@@ -84,7 +88,7 @@ Both apps run on a phone. On the phone, enable **Developer options › USB debug
 and run either app from Android Studio, or:
 
 ```bash
-./gradlew :host:installDebug :tv:installDebug
+./gradlew :host:installPlayDebug :tv:installPlayDebug
 ```
 
 On a phone the TV app opens in landscape. Long-press anywhere to open Host Mode (on a TV: hold OK
@@ -120,7 +124,7 @@ CI reads the same values from secrets (see `.github/workflows/release.yml`):
 `GE_UPLOAD_KEYSTORE_BASE64` (output of `base64 -i upload-keystore.jks`), `GE_UPLOAD_STORE_PASSWORD`,
 `GE_UPLOAD_KEY_ALIAS`, `GE_UPLOAD_KEY_PASSWORD`. Pushing a tag like `v1.0.0` builds both signed AABs.
 
-Without a key, `bundleRelease` still produces unsigned bundles (fine for checking, not for upload).
+Without a key, `bundlePlayRelease` still produces unsigned bundles (fine for checking, not for upload).
 
 ## How it works
 
@@ -170,3 +174,36 @@ host/src/main/java/com/guestexperience/host/
 ```
 
 Fonts: Cormorant Garamond and Inter, both under the SIL Open Font License (`licenses/`).
+
+## Automatic updates
+
+Pushing to `main` publishes new builds without anyone building by hand:
+
+- **Host phone app and Android TV app (sideload builds):** `.github/workflows/sideload-release.yml`
+  lints, tests and builds both apps, signs them with the sideload key, and publishes them as the
+  latest GitHub Release together with `update.json`. The installed apps check that file when they come
+  to the front (at most every 6 hours, or on demand). The phone shows "Update available" at the top;
+  the TV shows it under Host Mode › App update. Tapping **Update** downloads the APK, checks its SHA-256,
+  package name and signing key, then opens Android's install dialog. Android always asks the user to
+  confirm an update to a sideloaded app, and the first time it asks to allow "Install unknown apps" for it.
+  The check contacts only `github.com` (this repository's releases) and sends no data about the property.
+- **Samsung TV:** this Mac installs new versions over Wi-Fi; see `samsung-tv/README.md`.
+- **Google Play builds** (`play` flavour) don't contain the updater or the install permission; Play
+  updates them.
+
+One-time setup, in the repository's Settings › Secrets and variables › Actions:
+
+| Secret | Value |
+|---|---|
+| `GE_SIDELOAD_KEYSTORE_BASE64` | `base64 -i <keystore>` of the key the installed APKs are signed with |
+| `GE_SIDELOAD_STORE_PASSWORD` | its store password |
+| `GE_SIDELOAD_KEY_ALIAS` | its key alias |
+| `GE_SIDELOAD_KEY_PASSWORD` | its key password |
+
+The APKs installed by hand so far were signed with this Mac's Android debug key
+(`~/.android/debug.keystore`, alias `androiddebugkey`, passwords `android`), so using that key lets
+them update in place. Android refuses an update signed with a different key; switching keys means
+uninstalling once (and pairing the phone again).
+
+Version numbers: CI builds are `1.2.<run>` with version code `100 + run number`, so they are always
+newer than the hand-installed builds.

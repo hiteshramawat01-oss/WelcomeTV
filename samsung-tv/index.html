@@ -10,11 +10,65 @@
 </head>
 <body>
 
-<main id="welcome" class="screen" aria-live="polite">
-  <p class="eyebrow">Welcome</p>
-  <h1 id="guest-name" class="name"></h1>
-  <div class="rule" aria-hidden="true"></div>
-  <p id="guest-message" class="message"></p>
+<!-- Welcome v2: the same design as the Android TV app (see the design canvas). -->
+<main id="welcome" class="welcome" aria-live="polite">
+  <div id="scene" class="scene" aria-hidden="true"></div>
+  <div class="scrim scrim-left" aria-hidden="true"></div>
+  <div class="scrim scrim-bottom" aria-hidden="true"></div>
+
+  <div class="frame">
+    <header class="top">
+      <p id="property" class="property"><span class="dot" aria-hidden="true"></span><span id="property-text"></span></p>
+      <div class="clock-block">
+        <p class="clock"><span id="time"></span><span id="ampm" class="ampm"></span></p>
+        <p id="date" class="date"></p>
+      </div>
+      <button id="btn-settings" class="gear" type="button" aria-label="Settings">
+        <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </header>
+
+    <section class="greeting">
+      <p id="greet" class="overline"></p>
+      <p id="welcome-word" class="welcome-word">Welcome,</p>
+      <h1 id="guest-name" class="name"></h1>
+      <div class="rule" aria-hidden="true"></div>
+      <p id="guest-message" class="message"></p>
+    </section>
+
+    <footer class="bottom">
+      <div id="stay" class="panel stay">
+        <div id="checkout-row" class="row">
+          <span class="label">Check-out</span>
+          <span id="checkout" class="value strong"></span>
+        </div>
+        <div id="stay-divider" class="divider" aria-hidden="true"></div>
+        <div id="ticker-row" class="row">
+          <span id="ticker-label" class="label"></span>
+          <span id="ticker-text" class="value"></span>
+        </div>
+        <div id="ticker-dots" class="dots" aria-hidden="true"></div>
+      </div>
+
+      <button id="wifi-card" class="panel wifi" type="button">
+        <span id="wifi-qr" class="qr"></span>
+        <span class="wifi-text">
+          <span class="label">Wi-Fi</span>
+          <span id="wifi-ssid" class="ssid"></span>
+          <span id="wifi-pass" class="pass"></span>
+          <span class="hint">Scan with your phone camera · OK to enlarge</span>
+        </span>
+      </button>
+    </footer>
+  </div>
+
+  <div id="qr-overlay" class="overlay" tabindex="-1" hidden>
+    <p class="overline">Join the Wi-Fi</p>
+    <div id="big-qr" class="big-qr"></div>
+    <p id="big-ssid" class="big-ssid"></p>
+    <p id="big-pass" class="big-pass"></p>
+    <p class="big-hint">Point your phone camera at the code · Press OK or Back to close</p>
+  </div>
 </main>
 
 <section id="settings" class="screen settings" hidden>
@@ -29,7 +83,7 @@
     <button id="btn-cancel" type="button">Cancel</button>
     <button id="btn-pair" type="button">Pair a phone</button>
   </div>
-  <p class="hint small">Later, press OK on the remote 5 times quickly (or hold it for 3 seconds) to come back here.</p>
+  <p class="hint small">The Wi-Fi, check-out and other details come from the Host phone app. Later, select ⚙ at the top right of the welcome screen to come back here.</p>
 </section>
 
 <section id="pairing" class="screen pairing" hidden>
@@ -45,6 +99,9 @@
   </div>
 </section>
 
+<script src="content.js"></script>
+<script src="scene.js"></script>
+<script src="qr.js"></script>
 <script src="sync.js"></script>
 <script src="app.js"></script>
 </body>

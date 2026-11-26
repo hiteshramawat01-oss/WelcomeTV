@@ -55,12 +55,16 @@ class GuestScreenTest {
     fun rendersGreetingWifiAndCheckout() {
         show()
         rule.onNodeWithText("GOOD EVENING").assertIsDisplayed()
-        rule.onNodeWithText("Welcome, Ananya").assertIsDisplayed()
-        rule.onNodeWithText("to Pichola Haveli, Udaipur").assertIsDisplayed()
+        rule.onNodeWithText("Welcome,").assertIsDisplayed()
+        rule.onNodeWithText("Ananya").assertIsDisplayed()
+        rule.onNodeWithText("PICHOLA HAVELI · UDAIPUR").assertIsDisplayed()
         rule.onNodeWithText("Pichola-Guest").assertIsDisplayed()
         rule.onNodeWithText("lakeview2026").assertIsDisplayed()
         rule.onNodeWithText("7:42").assertIsDisplayed()
-        rule.onNodeWithText("Check-out   Thu 26 Nov · 11:00 AM").assertIsDisplayed()
+        rule.onNodeWithText("Monday, 23 November").assertIsDisplayed()
+        rule.onNodeWithText("CHECK-OUT").assertIsDisplayed()
+        rule.onNodeWithText("Thu 26 Nov · 11:00 AM").assertIsDisplayed()
+        rule.onNodeWithText("Ambrai Ghat — Sunset views").assertIsDisplayed()
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.guestexperience.tv.di
 
+import com.guestexperience.shared.update.AppUpdates
+
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
@@ -46,6 +48,9 @@ class AppContainer(context: Context) {
     val imageStore = ImageStore(app)
 
     val pairingCodes = PairingCodeManager()
+
+    /** In-app updates from GitHub Releases; null in Google Play builds. */
+    val updates: AppUpdates? = com.guestexperience.tv.createAppUpdates(app)
 
     val syncController = SyncController(
         context = app,

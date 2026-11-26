@@ -55,7 +55,7 @@ class ScreenshotTest {
         propertyName = "Pichola Haveli",
         location = "Udaipur",
         guestName = "Ananya",
-        hostMessage = "",
+        hostMessage = "Chai is on the house. Make yourself at home, and ring us any time you need anything.",
         wifi = WifiInfo("Pichola-Guest", "lakeview2026"),
         checkOut = CheckOut("2026-11-26", "11:00"),
         houseNotes = listOf("Rooftop sunset is best at 5:30"),

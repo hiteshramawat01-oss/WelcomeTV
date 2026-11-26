@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         container.syncController.start()
+        container.updates?.checkIfDue()
     }
 
     override fun onStop() {
