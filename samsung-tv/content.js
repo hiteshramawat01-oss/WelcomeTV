@@ -32,17 +32,22 @@
     return password.length >= 8 && password.length <= 63;
   }
 
-  /** Same order and field names as ContentValidator.validate. Returns the first bad field, or null. */
+  /** Same order, limits and field names as ContentValidator.validate, except that the property name
+   *  and Wi-Fi may be left out: older Host apps send this TV only the guest name and message, and the
+   *  welcome screen hides what is missing. Returns the first bad field, or null. */
   function problemIn(c) {
     if (!c || typeof c !== 'object') return 'propertyName';
-    if (!required(c.propertyName, PROPERTY_MAX)) return 'propertyName';
+    if (!optional(c.propertyName, PROPERTY_MAX)) return 'propertyName';
     if (!optional(c.location, PROPERTY_MAX)) return 'location';
     if (!optional(c.guestName, NAME_MAX)) return 'guestName';
     if (!optional(c.hostMessage, MESSAGE_MAX)) return 'hostMessage';
     var wifi = c.wifi || {};
-    if (!str(wifi.ssid) || !wifi.ssid.trim() || utf8Length(wifi.ssid) > SSID_MAX_BYTES) return 'wifi.ssid';
-    var security = wifi.security || 'WPA';
-    if (['WPA', 'WEP', 'OPEN'].indexOf(security) < 0 || !wifiPasswordOk(wifi.password, security)) return 'wifi.password';
+    if (!optional(wifi.ssid, 64)) return 'wifi.ssid';
+    if (str(wifi.ssid) && wifi.ssid.trim()) {
+      if (utf8Length(wifi.ssid) > SSID_MAX_BYTES) return 'wifi.ssid';
+      var security = wifi.security || 'WPA';
+      if (['WPA', 'WEP', 'OPEN'].indexOf(security) < 0 || !wifiPasswordOk(wifi.password, security)) return 'wifi.password';
+    }
     if (c.checkOut) {
       if (!validDate(c.checkOut.date)) return 'checkOut.date';
       if (!validTime(c.checkOut.time)) return 'checkOut.time';
