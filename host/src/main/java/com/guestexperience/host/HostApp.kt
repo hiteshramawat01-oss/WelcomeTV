@@ -10,7 +10,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.guestexperience.host.data.HostStore
 import com.guestexperience.host.data.KeystoreCipher
 import com.guestexperience.host.data.TvDiscovery
+import com.guestexperience.host.data.FoundTv
 import com.guestexperience.shared.sync.HostSyncClient
+import com.guestexperience.shared.sync.SamsungChannelDialer
+import com.guestexperience.shared.sync.SyncDialer
+import com.guestexperience.shared.sync.TcpDialer
+import com.guestexperience.shared.sync.TvKind
 import java.io.File
 import java.util.UUID
 
@@ -31,6 +36,12 @@ class HostContainer(context: Context) {
     val store = HostStore(app.dataStore, KeystoreCipher())
     val discovery = TvDiscovery(app)
     val client = HostSyncClient(phoneId, phoneName)
+
+    /** How to reach a found TV: TCP to the Android TV app, or the Samsung multiscreen channel. */
+    fun dialer(tv: FoundTv): SyncDialer = when (tv.kind) {
+        TvKind.ANDROID -> TcpDialer(tv.host, tv.port)
+        TvKind.SAMSUNG -> SamsungChannelDialer(tv.host, phoneName, tv.port)
+    }
 }
 
 class HostApp : Application() {

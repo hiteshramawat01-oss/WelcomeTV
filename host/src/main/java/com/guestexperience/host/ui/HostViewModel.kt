@@ -9,6 +9,10 @@ import com.guestexperience.shared.sync.PairOutcome
 import com.guestexperience.shared.sync.PairedTv
 import com.guestexperience.shared.sync.SyncError
 import com.guestexperience.shared.sync.SyncResult
+import com.guestexperience.shared.sync.SamsungChannelDialer
+import com.guestexperience.shared.sync.TvKind
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.guestexperience.shared.validation.ContentValidator
 import com.guestexperience.shared.validation.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,11 +34,14 @@ data class HostUiState(
     val showPairing: Boolean = false,
 ) {
     val connectedTv: FoundTv? get() = pairedTv?.let { tv -> found.firstOrNull { it.tvId == tv.tvId } }
+
+    /** The Samsung Guest Welcome app shows only the guest name and the welcome message. */
+    val welcomeOnly: Boolean get() = pairedTv?.kind == TvKind.SAMSUNG
 }
 
 fun SyncError.friendly(field: String? = null): String = when (this) {
-    SyncError.UNREACHABLE -> "Can't reach the TV. Open Guest Experience TV on it and make sure your phone is on the same Wi-Fi."
-    SyncError.NO_PAIRING_CODE -> "On the TV, open Host Mode › Pair a phone to show a code."
+    SyncError.UNREACHABLE -> "Can't reach the TV. Make sure it is on, the app is installed on it, and your phone is on the same Wi-Fi."
+    SyncError.NO_PAIRING_CODE -> "On the TV, open Pair a phone to show a code."
     SyncError.WRONG_CODE -> "That code isn't right. Check the 6 digits on the TV."
     SyncError.TOO_MANY_ATTEMPTS -> "Too many wrong codes. On the TV, choose \"Show a new code\"."
     SyncError.UNKNOWN_PHONE, SyncError.DECRYPT_FAILED -> "This TV no longer recognises this phone. Pair again."
@@ -51,6 +58,11 @@ class HostViewModel(private val c: HostContainer) : ViewModel() {
     init {
         viewModelScope.launch {
             c.store.pairedTv.collect { tv ->
+                // A Samsung TV is also reachable at its remembered address, even if DNS-SD never finds it.
+                val rememberedHost = tv?.host
+                if (tv?.kind == TvKind.SAMSUNG && rememberedHost != null) {
+                    c.discovery.addManual(FoundTv(tv.name, tv.tvId, rememberedHost, SamsungChannelDialer.DEFAULT_PORT, TvKind.SAMSUNG))
+                }
                 _state.update {
                     it.copy(
                         loaded = true,
@@ -86,7 +98,7 @@ class HostViewModel(private val c: HostContainer) : ViewModel() {
         val target = s.connectedTv ?: return message("Looking for your TV on this Wi-Fi…", false)
         _state.update { it.copy(busy = true) }
         viewModelScope.launch {
-            when (val r = c.client.fetch(target.host, target.port, tv)) {
+            when (val r = c.client.fetch(c.dialer(target), tv)) {
                 is SyncResult.Ok -> {
                     c.store.save(r.tv)
                     _state.update { it.copy(busy = false, draft = r.value, dirty = false, message = null) }
@@ -112,11 +124,12 @@ class HostViewModel(private val c: HostContainer) : ViewModel() {
             houseNotes = draft.houseNotes.map(String::trim).filter(String::isNotEmpty),
             places = draft.places.filter { it.name.isNotBlank() },
         )
-        ContentValidator.validate(cleaned)?.let { p -> return message("Check ${fieldLabel(p.field)}.", true) }
+        val problem = if (s.welcomeOnly) ContentValidator.validateWelcomeOnly(cleaned) else ContentValidator.validate(cleaned)
+        problem?.let { p -> return message("Check ${fieldLabel(p.field)}.", true) }
         val target = s.connectedTv ?: return message(SyncError.UNREACHABLE.friendly(), true)
         _state.update { it.copy(busy = true) }
         viewModelScope.launch {
-            when (val r = c.client.push(target.host, target.port, tv, cleaned)) {
+            when (val r = c.client.push(c.dialer(target), tv, cleaned)) {
                 is SyncResult.Ok -> {
                     c.store.save(r.tv)
                     _state.update { it.copy(busy = false, dirty = false, draft = cleaned.copy(updatedAt = r.value), message = "Sent — the TV is updated.", messageIsError = false) }
@@ -131,14 +144,34 @@ class HostViewModel(private val c: HostContainer) : ViewModel() {
 
     fun showPairing(show: Boolean) = _state.update { it.copy(showPairing = show, message = null) }
 
+    /** Adds a Samsung TV by its IP address, for Wi-Fi networks where it doesn't show up by itself. */
+    fun addByAddress(input: String) {
+        val ip = input.trim()
+        if (!Regex("""^(\d{1,3})(\.\d{1,3}){3}$""").matches(ip) || ip.split('.').any { it.toInt() > 255 }) {
+            return message("Enter the TV's IP address, like 192.168.1.20.", true)
+        }
+        _state.update { it.copy(busy = true, message = null) }
+        viewModelScope.launch {
+            val info = withContext(Dispatchers.IO) { SamsungChannelDialer.lookup(ip) }
+            _state.update { it.copy(busy = false) }
+            if (info == null) {
+                message("No Samsung TV answered at $ip. Check the address on the TV and that both are on the same Wi-Fi.", true)
+            } else {
+                c.discovery.addManual(FoundTv(info.name, info.id, ip, SamsungChannelDialer.DEFAULT_PORT, TvKind.SAMSUNG))
+                message("Found ${info.name}. Now enter the code shown on the TV.", false)
+            }
+        }
+    }
+
     fun pair(target: FoundTv, code: String) {
         if (Validators.pairingCode(code) != null) return message("Enter the 6-digit code shown on the TV.", true)
         _state.update { it.copy(busy = true, message = null) }
         viewModelScope.launch {
-            when (val r = c.client.pair(target.host, target.port, code)) {
+            when (val r = c.client.pair(c.dialer(target), code)) {
                 is PairOutcome.Paired -> {
-                    c.store.save(r.tv)
-                    _state.update { it.copy(busy = false, showPairing = false, draft = null, message = "Connected to ${r.tv.name}.", messageIsError = false) }
+                    val tv = r.tv.copy(kind = target.kind, host = target.host)
+                    c.store.save(tv)
+                    _state.update { it.copy(busy = false, showPairing = false, draft = null, message = "Connected to ${tv.name}.", messageIsError = false) }
                     autoFetch()
                 }
                 is PairOutcome.Failed -> {

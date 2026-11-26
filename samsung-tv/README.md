@@ -6,9 +6,10 @@ It's a plain Tizen web app (HTML, CSS, JS). It doesn't use Gradle and doesn't sh
 ```
 samsung-tv/
   config.xml   Tizen app manifest (profile tv-samsung, 1920×1080)
-  index.html   welcome screen + setup screen
+  index.html   welcome, setup and pair-a-phone screens
   style.css    look (same colours and fonts as the Android TV app)
-  app.js       remote-control handling and saving
+  app.js       screens, remote-control handling and saving
+  sync.js      updates from the Host phone app (pairing + encrypted messages)
   icon.png     launcher icon
   fonts/       Cormorant Garamond and Inter (OFL, see ../licenses)
 ```
@@ -18,12 +19,38 @@ samsung-tv/
 - **First launch** shows a setup screen. Type the guest name and a message with the remote
   (OK on a field opens the TV keyboard), then pick **Save**.
 - After that the TV shows only the welcome screen. The app turns off the TV's screensaver while it's open.
-- **To change the name or message:** hold **OK** on the remote for 3 seconds.
+- **To open the settings again:** press **OK** (the centre of the ring) 5 times quickly, or hold it for
+  3 seconds. Some Samsung remotes don't report a held button, so the 5 presses are the reliable way.
 - **Back** closes the app.
 
-Everything is saved on the TV itself (the app's local storage). The app sends nothing over the
-network, and it doesn't sync with the Host phone app. That sync uses raw TCP sockets, which Tizen web
-apps can't open.
+Everything is saved on the TV itself (the app's local storage). Reinstalling the app clears it.
+
+## Updating it from the Host phone app
+
+The Guest Experience Host app (1.1.0+) can change the guest name and message over the Wi-Fi.
+
+1. On the TV: open the settings, choose **Pair a phone**. A 6-digit code shows for 5 minutes.
+2. In the Host app: pick the Samsung TV ("Samsung · Guest Welcome"). If it isn't listed, type the
+   TV's IP address (TV: Settings › General › Network › Network Status › IP Settings) and tap **Add**.
+3. Enter the code and tap **Pair**. From then on, **Send to TV** updates the welcome screen.
+   If Guest Welcome is closed, the phone opens it on the TV.
+
+**Remove all phones** on the pair screen un-pairs every phone.
+
+How it works: Tizen web apps can't listen on a socket, so the phone can't connect to this app the
+way it connects to the Android TV app. Instead both join a channel (`com.guestexperience.welcome`) on
+the TV's own Samsung multiscreen service (port 8001, local network only). The app joins as the
+channel's host and the phone joins as a client. Over that channel they run the **same protocol** as
+the Android TV app ([SyncProtocol.kt](../shared/src/main/kotlin/com/guestexperience/shared/sync/SyncProtocol.kt)):
+ECDH P-256 pairing confirmed by the code (5 attempts, 5 minutes, single use), then AES-256-GCM
+messages with a strictly increasing counter. Other devices on the Wi-Fi can join the channel, but
+without the pairing key they can't change anything. The phone side is
+[SamsungChannelDialer.kt](../shared/src/main/kotlin/com/guestexperience/shared/sync/SamsungChannelDialer.kt);
+its WebSocket client sends no extensions, because the TV silently ignores clients that offer
+permessage-deflate.
+
+The pair screen's "Phone link ·" line shows the app's connection to that service, which helps when a
+phone can't connect.
 
 ## Try it in a browser
 
@@ -60,7 +87,7 @@ The certificate must be a **Samsung** profile with the TV's DUID. A plain Tizen 
 with "Invalid certificate chain".
 
 ```bash
-cd samsung-tv && zip -qr -X /tmp/GuestWelcome-unsigned.wgt config.xml index.html style.css app.js icon.png fonts
+cd samsung-tv && zip -qr -X /tmp/GuestWelcome-unsigned.wgt config.xml index.html style.css sync.js app.js icon.png fonts
 ```
 
 ```bash
@@ -74,6 +101,9 @@ sdb connect <tv-ip>:26101
 ```bash
 $TZ install -p /tmp/GuestWelcome.wgt -e <tv-ip>:26101
 ```
+
+`tz install` removes the old version first, which clears the saved name, message and paired
+phones. After a reinstall, pair the phone again.
 
 ```bash
 sdb -s <tv-ip>:26101 shell 0 was_execute GuestExpTV.GuestWelcome

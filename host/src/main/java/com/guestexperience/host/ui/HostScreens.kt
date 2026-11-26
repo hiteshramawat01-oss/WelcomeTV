@@ -60,6 +60,7 @@ import com.guestexperience.shared.model.Place
 import com.guestexperience.shared.model.PropertyContent
 import com.guestexperience.shared.model.TimeFormat
 import com.guestexperience.shared.model.WifiSecurity
+import com.guestexperience.shared.sync.TvKind
 import com.guestexperience.shared.validation.Validators
 import java.time.LocalDate
 import java.time.LocalTime
@@ -121,7 +122,7 @@ private fun PairScreen(s: HostUiState, vm: HostViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (s.searching) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 Text(
-                    "Looking for TVs… Open Guest Experience TV on the TV, and make sure this phone is on the same Wi-Fi.",
+                    "Looking for TVs… Make sure the TV is on and this phone is on the same Wi-Fi. On Android TV, open Guest Experience TV.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -137,12 +138,28 @@ private fun PairScreen(s: HostUiState, vm: HostViewModel) {
                     Icon(painterResource(R.drawable.ic_tv), contentDescription = null, tint = if (isSelected) HostColors.Gold else HostColors.Dim)
                     Column {
                         Text(tv.serviceName, style = MaterialTheme.typography.titleMedium)
-                        Text(if (s.pairedTv?.tvId == tv.tvId) "Paired" else "Not paired yet", style = MaterialTheme.typography.bodySmall, color = HostColors.Muted)
+                        val app = if (tv.kind == TvKind.SAMSUNG) "Samsung · Guest Welcome" else "Android TV · Guest Experience TV"
+                        Text("$app · ${if (s.pairedTv?.tvId == tv.tvId) "Paired" else "Not paired yet"}", style = MaterialTheme.typography.bodySmall, color = HostColors.Muted)
                     }
                 }
             }
         }
         TextButton(onClick = vm::refresh) { Text("Search again") }
+        var address by rememberSaveable { mutableStateOf("") }
+        Text("Samsung TV not listed? Add it by its IP address (on the TV: Settings › General › Network › Network Status › IP Settings).",
+            style = MaterialTheme.typography.bodySmall, color = HostColors.Dim)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(
+                value = address,
+                onValueChange = { address = it.filter { ch -> ch.isDigit() || ch == '.' }.take(15) },
+                label = { Text("TV IP address") },
+                placeholder = { Text("192.168.1.20") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(onClick = { vm.addByAddress(address) }, enabled = address.isNotBlank() && !s.busy) { Text("Add") }
+        }
         OutlinedTextField(
             value = code,
             onValueChange = { code = it.filter(Char::isDigit).take(Validators.PAIRING_CODE_LENGTH) },
@@ -152,7 +169,12 @@ private fun PairScreen(s: HostUiState, vm: HostViewModel) {
             textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 24.sp, letterSpacing = 6.sp, textAlign = TextAlign.Center),
             modifier = Modifier.fillMaxWidth(),
         )
-        Text("On the TV: hold OK for 3 seconds (or choose ⚙), enter your PIN, then open Pair a phone.", style = MaterialTheme.typography.bodySmall, color = HostColors.Dim)
+        Text(
+            if (selected?.kind == TvKind.SAMSUNG) "On the Samsung TV: open Guest Welcome, press OK 5 times quickly, then choose Pair a phone."
+            else "On the TV: hold OK for 3 seconds (or choose ⚙), enter your PIN, then open Pair a phone.",
+            style = MaterialTheme.typography.bodySmall,
+            color = HostColors.Dim,
+        )
         Message(s)
         Button(
             onClick = { selected?.let { vm.pair(it, code) } },
@@ -165,7 +187,10 @@ private fun PairScreen(s: HostUiState, vm: HostViewModel) {
 
 @Composable
 private fun MainScreen(s: HostUiState, vm: HostViewModel) {
-    var tab by rememberSaveable { mutableStateOf(Tab.STAY) }
+    var chosenTab by rememberSaveable { mutableStateOf(Tab.STAY) }
+    // A Samsung TV shows only the guest name and message, so its Wi-Fi and property tabs are hidden.
+    val tabs = if (s.welcomeOnly) listOf(Tab.STAY, Tab.TV) else Tab.entries
+    val tab = chosenTab.takeIf { it in tabs } ?: Tab.STAY
     Scaffold(
         containerColor = HostColors.Ink,
         bottomBar = {
@@ -179,10 +204,10 @@ private fun MainScreen(s: HostUiState, vm: HostViewModel) {
                     }
                 }
                 NavigationBar(containerColor = HostColors.Ink) {
-                    Tab.entries.forEach { t ->
+                    tabs.forEach { t ->
                         NavigationBarItem(
                             selected = tab == t,
-                            onClick = { tab = t },
+                            onClick = { chosenTab = t },
                             icon = { Icon(painterResource(t.icon), contentDescription = null) },
                             label = { Text(t.label) },
                         )
@@ -211,7 +236,7 @@ private fun MainScreen(s: HostUiState, vm: HostViewModel) {
             when {
                 tab == Tab.TV -> TvTab(s, vm)
                 d == null -> Waiting(s, vm)
-                tab == Tab.STAY -> StayTab(d, vm)
+                tab == Tab.STAY -> StayTab(d, vm, showCheckOut = !s.welcomeOnly)
                 tab == Tab.WIFI -> WifiTab(d, vm)
                 tab == Tab.PROPERTY -> PropertyTab(d, vm)
             }
@@ -237,7 +262,8 @@ private fun ConnectionLine(s: HostUiState) {
 @Composable
 private fun Waiting(s: HostUiState, vm: HostViewModel) {
     Text(
-        if (s.connectedTv == null) "Open Guest Experience TV on your TV. This phone needs to be on the same Wi-Fi to change what the TV shows."
+        if (s.connectedTv == null) "Looking for your TV. Make sure it is on, and this phone is on the same Wi-Fi." +
+            (if (s.welcomeOnly) "" else " On Android TV, open Guest Experience TV.")
         else "Loading what the TV is showing…",
         style = MaterialTheme.typography.bodyMedium,
     )
@@ -289,10 +315,12 @@ private fun StepRow(label: String, value: String, onMinus: () -> Unit, onPlus: (
 }
 
 @Composable
-private fun StayTab(d: PropertyContent, vm: HostViewModel) {
+private fun StayTab(d: PropertyContent, vm: HostViewModel, showCheckOut: Boolean) {
     Field("Guest name", d.guestName, { v -> vm.edit { it.copy(guestName = v) } }, Validators.NAME_MAX, "e.g. Ananya")
     val co = d.checkOut
-    if (co == null) {
+    if (!showCheckOut) {
+        // Samsung Guest Welcome has no check-out line.
+    } else if (co == null) {
         OutlinedButton(onClick = { vm.edit { it.copy(checkOut = CheckOut(LocalDate.now().plusDays(1).toString(), "11:00")) } }) {
             Text("Add check-out time")
         }
@@ -399,7 +427,8 @@ private fun TvTab(s: HostUiState, vm: HostViewModel) {
     OutlinedButton(onClick = { vm.showPairing(true) }, modifier = Modifier.fillMaxWidth()) { Text("Pair with a different TV") }
     TextButton(onClick = vm::forget, modifier = Modifier.fillMaxWidth()) { Text("Forget this TV", color = HostColors.Warn) }
     Text(
-        "This phone and the TV talk only over your Wi-Fi. To stop this phone controlling the TV, also remove it on the TV under Host Mode › Pair a phone.",
+        "This phone and the TV talk only over your Wi-Fi. To stop this phone controlling the TV, also remove it on the TV under " +
+            (if (s.welcomeOnly) "Pair a phone › Remove all phones." else "Host Mode › Pair a phone."),
         style = MaterialTheme.typography.bodySmall,
         color = HostColors.Dim,
     )

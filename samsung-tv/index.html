@@ -21,16 +21,31 @@
   <h2>Welcome screen</h2>
   <p class="hint">Use the arrows to move, OK to type or press a button.</p>
   <label for="input-name">Guest name</label>
-  <input id="input-name" type="text" maxlength="60" autocomplete="off">
+  <input id="input-name" type="text" maxlength="40" autocomplete="off">
   <label for="input-message">Welcome message</label>
-  <input id="input-message" type="text" maxlength="160" autocomplete="off">
+  <input id="input-message" type="text" maxlength="200" autocomplete="off">
   <div class="buttons">
     <button id="btn-save" type="button">Save</button>
     <button id="btn-cancel" type="button">Cancel</button>
+    <button id="btn-pair" type="button">Pair a phone</button>
   </div>
-  <p class="hint small">Later, hold OK on the remote for 3 seconds to come back here.</p>
+  <p class="hint small">Later, press OK on the remote 5 times quickly (or hold it for 3 seconds) to come back here.</p>
 </section>
 
+<section id="pairing" class="screen pairing" hidden>
+  <h2>Pair a phone</h2>
+  <p class="hint">In the Guest Experience Host app, choose this TV and enter this code.</p>
+  <p id="pair-code" class="code" aria-live="polite"></p>
+  <p id="pair-status" class="hint" aria-live="polite"></p>
+  <p id="paired-phones" class="hint small"></p>
+  <p id="link-status" class="hint small"></p>
+  <div class="buttons">
+    <button id="btn-pair-done" type="button">Done</button>
+    <button id="btn-forget" type="button">Remove all phones</button>
+  </div>
+</section>
+
+<script src="sync.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

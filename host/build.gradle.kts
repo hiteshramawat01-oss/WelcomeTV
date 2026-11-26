@@ -23,8 +23,8 @@ android {
         minSdk = 26
         // Phone apps on Google Play must target the latest required level (API 36 from Aug 2026).
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     signingConfigs {

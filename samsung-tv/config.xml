@@ -2,7 +2,7 @@
 <widget xmlns="http://www.w3.org/ns/widgets"
         xmlns:tizen="http://tizen.org/ns/widgets"
         id="http://guestexperience.tv/samsung"
-        version="1.0.0"
+        version="1.1.0"
         viewmodes="maximized">
     <tizen:application id="GuestExpTV.GuestWelcome" package="GuestExpTV" required_version="3.0"/>
     <tizen:profile name="tv-samsung"/>
@@ -11,5 +11,9 @@
     <icon src="icon.png"/>
     <content src="index.html"/>
     <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
+    <!-- Local only: the TV's own Samsung multiscreen service, used to receive updates from the paired phone. -->
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <access origin="http://127.0.0.1:8001" subdomains="false"/>
+    <access origin="ws://127.0.0.1:8001" subdomains="false"/>
     <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
 </widget>

@@ -7,7 +7,7 @@ for the host.
 |---|---|---|---|
 | `tv` | **Guest Experience TV**: the app on the TV. Guest welcome screen, Wi-Fi QR code, check-out, house notes, screensaver, PIN-protected Host Mode | `com.guestexperience.tv` | 26 / 35 |
 | `host` | **Guest Experience Host**: phone app that edits the TV over the same Wi-Fi | `com.guestexperience.host` | 26 / 36 |
-| `samsung-tv` | **Guest Welcome for Samsung TV**: minimal Tizen web app, guest name + welcome message only, set with the remote. Not part of the Gradle build; see [samsung-tv/README.md](samsung-tv/README.md) | – | – |
+| `samsung-tv` | **Guest Welcome for Samsung TV**: minimal Tizen web app, guest name + welcome message only, set with the remote or from the Host app (over the TV's Samsung multiscreen channel). Not part of the Gradle build; see [samsung-tv/README.md](samsung-tv/README.md) | – | – |
 | `shared` | Pure Kotlin (no Android): content model, Wi-Fi QR payload, QR encoder, validation, PIN hashing and lockout, pairing and sync protocol | – | – |
 
 Everything stays inside the property: no accounts, no analytics, no ads, no cloud. The phone and TV

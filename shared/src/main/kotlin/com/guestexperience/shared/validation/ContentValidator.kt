@@ -9,6 +9,14 @@ object ContentValidator {
     const val MAX_NOTES = 8
     const val MAX_PLACES = 8
 
+    /**
+     * For the Samsung Guest Welcome app, which shows only the guest name and the welcome message.
+     * Same limits as [validate] for those two fields; everything else is ignored there.
+     */
+    fun validateWelcomeOnly(c: PropertyContent): ContentProblem? =
+        Validators.optionalText(c.guestName, Validators.NAME_MAX)?.let { ContentProblem("guestName", it) }
+            ?: Validators.optionalText(c.hostMessage, Validators.MESSAGE_MAX)?.let { ContentProblem("hostMessage", it) }
+
     fun validate(c: PropertyContent): ContentProblem? {
         fun check(field: String, error: FieldError?) = error?.let { ContentProblem(field, it) }
 
