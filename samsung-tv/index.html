@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>Guest Welcome</title>
+<link rel="stylesheet" href="style.css">
+<!-- Samsung TV web APIs (screensaver control). Ignored in a desktop browser. -->
+<script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+
+<main id="welcome" class="screen" aria-live="polite">
+  <p class="eyebrow">Welcome</p>
+  <h1 id="guest-name" class="name"></h1>
+  <div class="rule" aria-hidden="true"></div>
+  <p id="guest-message" class="message"></p>
+</main>
+
+<section id="settings" class="screen settings" hidden>
+  <h2>Welcome screen</h2>
+  <p class="hint">Use the arrows to move, OK to type or press a button.</p>
+  <label for="input-name">Guest name</label>
+  <input id="input-name" type="text" maxlength="60" autocomplete="off">
+  <label for="input-message">Welcome message</label>
+  <input id="input-message" type="text" maxlength="160" autocomplete="off">
+  <div class="buttons">
+    <button id="btn-save" type="button">Save</button>
+    <button id="btn-cancel" type="button">Cancel</button>
+  </div>
+  <p class="hint small">Later, hold OK on the remote for 3 seconds to come back here.</p>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
