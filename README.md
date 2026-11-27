@@ -10,6 +10,8 @@ for the host.
 | `samsung-tv` | **Guest Welcome for Samsung TV**: minimal Tizen web app, guest name + welcome message only, set with the remote or from the Host app (over the TV's Samsung multiscreen channel). Not part of the Gradle build; see [samsung-tv/README.md](samsung-tv/README.md) | – | – |
 | `shared` | Pure Kotlin (no Android): content model, Wi-Fi QR payload, QR encoder, validation, PIN hashing and lockout, pairing and sync protocol | – | – |
 
+**Documentation:** start at [docs/README.md](docs/README.md) (architecture, flows, screens, protocol, how to extend).
+
 Everything stays inside the property: no accounts, no analytics, no ads, no cloud. The phone and TV
 talk only over the local network, encrypted after a one-time pairing code. (Sideload builds also ask
 github.com for app updates; see *Automatic updates*.)
@@ -147,7 +149,8 @@ Without a key, `bundlePlayRelease` still produces unsigned bundles (fine for che
   adb shell settings put secure screensaver_components com.guestexperience.tv/.dream.GuestDreamService
   ```
 
-- **No self-updates**: no install-packages permission, no downloaders. Updates come only from Google Play.
+- **Updates**: Play builds have no install-packages permission and no downloader; Play updates them. Sideload
+  builds update from GitHub Releases (see *Automatic updates*).
 
 ## Project layout
 
@@ -159,9 +162,11 @@ shared/src/main/kotlin/com/guestexperience/shared/
   validation/   Validators, ContentValidator
   security/     PinHasher, PinLockoutPolicy
   display/      Greeting
-  sync/         SyncProtocol, SyncCrypto, FrameIO, PairingCodeManager, TvSyncServer, HostSyncClient
+  sync/         SyncProtocol, SyncCrypto, FrameIO, PairingCodeManager, TvSyncServer, HostSyncClient,
+                SamsungChannelDialer, MiniWebSocket
+  update/       UpdateManifest, AppUpdates (update.json, version checks)
 tv/src/main/java/com/guestexperience/tv/
-  data/         TvRepository (DataStore), KeystoreCipher, ImageStore, SyncController (NSD)
+  data/         TvRepository (DataStore), SecretCipher, ImageStore, SyncController (NSD)
   di/           AppContainer (manual DI)
   ui/guest      GuestScreen
   ui/host       PinScreen, HostScreen (+ Pair a phone)
@@ -169,8 +174,11 @@ tv/src/main/java/com/guestexperience/tv/
   ui/components Controls (TV text field, buttons), QrCode, Clock, UdaipurScene, GuestBackground, PinPad
   dream/        GuestDreamService
 host/src/main/java/com/guestexperience/host/
-  data/         HostStore, TvDiscovery (NSD), KeystoreCipher
+  data/         HostStore, TvDiscovery (NSD), SecretCipher
   ui/           HostViewModel, HostScreens (pair, stay, Wi-Fi, property, TV)
+updater/        GitHubUpdater, InstallResultReceiver (sideload builds only)
+samsung-tv/     Tizen web app: index.html, style.css, app.js, content.js, sync.js, scene.js, qr.js
+tools/          samsung-autoupdate.sh (+ installer, LaunchAgent), RenderBrandAssets.java
 ```
 
 Fonts: Cormorant Garamond and Inter, both under the SIL Open Font License (`licenses/`).
